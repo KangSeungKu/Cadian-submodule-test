@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 파트너 사 정보
+model Partner {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(100)
+  code        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  status      String   @default("ACTIVE") @db.VarChar(20)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계 설정
+  users       PartnerUser[]
+  contracts   Contract[]
+  documents   Document[]
+
+  @@map("partners")
+}
+
+// 파트너 사용자
+model PartnerUser {
+  id        String   @id @default(cuid())
+  partnerId String   @db.VarChar(36)
+  userId    String   @db.VarChar(36) // 공유 권한 테이블의 사용자 ID
+  role      String   @db.VarChar(50)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계 설정
+  partner Partner @relation(fields: [partnerId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([partnerId, userId])
+  @@map("partner_users")
+}
+
+// 계약 정보
+model Contract {
+  id          String   @id @default(cuid())
+  partnerId   String   @db.VarChar(36)
+  title       String   @db.VarChar(200)
+  content     String   @db.Text
+  status      String   @default("DRAFT") @db.VarChar(20)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계 설정
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@map("contracts")
+}
+
+// 문서 관리
+model Document {
+  id          String   @id @default(cuid())
+  partnerId   String   @db.VarChar(36)
+  title       String   @db.VarChar(200)
+  filePath    String   @db.VarChar(500)
+  fileSize    Int
+  mimeType    String   @db.VarChar(100)
+  status      String   @default("ACTIVE") @db.VarChar(20)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계 설정
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@map("documents")
+}
+
+// 사용자 정보 (기존 권한 시스템과 공유)
+model User {
+  id        String   @id @db.VarChar(36)
+  username  String   @unique @db.VarChar(100)
+  email     String   @unique @db.VarChar(200)
+  status    String   @db.VarChar(20)
+  createdAt DateTime @db.DateTime(6)
+  updatedAt DateTime @db.DateTime(6)
+
+  // 관계 설정
+  roles UserRole[]
+  partnerUsers PartnerUser[]
+
+  @@map("users")
+}
+
+// 역할 정보 (기존 권한 시스템과 공유)
+model Role {
+  id          String   @id @db.VarChar(36)
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  status      String   @db.VarChar(20)
+  createdAt   DateTime @db.DateTime(6)
+  updatedAt   DateTime @db.DateTime(6)
+
+  // 관계 설정
+  users UserRole[]
+
+  @@map("roles")
+}
+
+// 사용자-역할 매핑 (기존 권한 시스템과 공유)
+model UserRole {
+  id     String @id @default(cuid())
+  userId String @db.VarChar(36)
+  roleId String @db.VarChar(36)
+
+  // 관계 설정
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
